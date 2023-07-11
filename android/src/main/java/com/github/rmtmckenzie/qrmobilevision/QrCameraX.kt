@@ -2,9 +2,6 @@ package com.github.rmtmckenzie.qrmobilevision
 
 import android.app.Activity
 import android.graphics.SurfaceTexture
-import android.os.Handler
-import android.os.Looper
-import android.util.Size
 import android.view.Surface
 import android.view.Surface.ROTATION_0
 import androidx.camera.core.Camera
@@ -19,32 +16,21 @@ import androidx.lifecycle.LifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
-import io.flutter.view.TextureRegistry
 import java.util.concurrent.TimeUnit
-
-enum class DetectionSpeed(val intValue: Int) {
-    NO_DUPLICATES(0),
-    NORMAL(1),
-    UNRESTRICTED(2)
-}
 
 class QrCameraX(
     private val activity: Activity,
     private val texture: SurfaceTexture,
     private val callback: QrReaderCallbacks,
-    private val barcodeScannerOptions: BarcodeScannerOptions,
+    barcodeScannerOptions: BarcodeScannerOptions,
 ) : QrCamera {
     private var cameraProvider: ProcessCameraProvider? = null
     private var preview: Preview? = null
     private var camera: Camera? = null
     private var scanner = BarcodeScanning.getClient(barcodeScannerOptions)
     private var lastScanned: List<String?>? = null
-    private var scannerTimeout = false
     private var resolution: ResolutionInfo? = null
 
-    /// Configurable variables
-    private var detectionSpeed: DetectionSpeed = DetectionSpeed.NO_DUPLICATES
-    private var detectionTimeout: Long = 250
 
     /**
      * callback for the camera. Every frame is passed through this function.
@@ -54,23 +40,14 @@ class QrCameraX(
         val mediaImage = imageProxy.image ?: return@Analyzer
         val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
 
-        if (detectionSpeed == DetectionSpeed.NORMAL && scannerTimeout) {
-            imageProxy.close()
-            return@Analyzer
-        } else if (detectionSpeed == DetectionSpeed.NORMAL) {
-            scannerTimeout = true
-        }
-
         scanner.process(inputImage)
             .addOnSuccessListener { barcodes ->
-                if (detectionSpeed == DetectionSpeed.NO_DUPLICATES) {
-                    val newScannedBarcodes = barcodes.map { barcode -> barcode.rawValue }
-                    if (newScannedBarcodes == lastScanned) {
-                        // New scanned is duplicate, returning
-                        return@addOnSuccessListener
-                    }
-                    if (newScannedBarcodes.isNotEmpty()) lastScanned = newScannedBarcodes
+                val newScannedBarcodes = barcodes.map { barcode -> barcode.rawValue }
+                if (newScannedBarcodes == lastScanned) {
+                    // New scanned is duplicate, returning
+                    return@addOnSuccessListener
                 }
+                if (newScannedBarcodes.isNotEmpty()) lastScanned = newScannedBarcodes
 
                 if (barcodes.isNotEmpty()) {
                     callback.qrRead(barcodes.first().rawValue)
@@ -78,13 +55,6 @@ class QrCameraX(
                 }
             }
             .addOnCompleteListener { imageProxy.close() }
-
-        if (detectionSpeed == DetectionSpeed.NORMAL) {
-            // Set timer and continue
-            Handler(Looper.getMainLooper()).postDelayed({
-                scannerTimeout = false
-            }, detectionTimeout)
-        }
     }
 
     @Throws(QrReader.Exception::class)
@@ -128,7 +98,7 @@ class QrCameraX(
             preview,
             analysis
         )
-        resolution = preview?.resolutionInfo;
+        resolution = preview?.resolutionInfo
     }
 
     override fun stop() {
