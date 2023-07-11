@@ -1,12 +1,10 @@
 package com.github.rmtmckenzie.qrmobilevision;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.SurfaceTexture;
-import android.os.Build;
 import android.util.Log;
 
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
@@ -26,13 +24,8 @@ class QrReader {
         this.context = context;
         this.startedCallback = startedCallback;
 
-        if (android.os.Build.VERSION.SDK_INT >= 23) {
-            Log.i(TAG, "Using new camera API.");
-            qrCamera = new QrCameraC2(width, height, texture, context, new QrDetector(communicator, options));
-        } else {
-            Log.i(TAG, "Using old camera API.");
-            qrCamera = new QrCameraC1(width, height, texture, context, new QrDetector(communicator, options));
-        }
+        Log.i(TAG, "Using new camera API.");
+        qrCamera = new QrCameraX(context, texture, communicator, options);
     }
 
     void start(final int heartBeatTimeout, final int cameraDirection) throws IOException, NoPermissionException, Exception {
@@ -87,14 +80,7 @@ class QrReader {
     }
 
     private boolean hasCameraHardware(Context context) {
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY);
-        } else {
-            @SuppressLint("UnsupportedChromeOsCameraSystemFeature")
-            boolean hasFeature = context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA);
-
-            return hasFeature;
-        }
+        return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY);
     }
 
     private boolean checkCameraPermission(Context context) {
@@ -111,7 +97,7 @@ class QrReader {
     }
 
     static class Exception extends java.lang.Exception {
-        private Reason reason;
+        private final Reason reason;
 
         Exception(Reason reason) {
             super("QR reader failed because " + reason.toString());
@@ -125,7 +111,8 @@ class QrReader {
         enum Reason {
             noHardware,
             noPermissions,
-            noBackCamera
+            noBackCamera,
+            alreadyStarted;
         }
     }
 }

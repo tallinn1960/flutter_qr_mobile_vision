@@ -67,6 +67,7 @@ class _MyAppState extends State<MyApp> {
                             cameraDirection: dirState ? CameraDirection.FRONT : CameraDirection.BACK,
                             qrCodeCallback: (code) {
                               setState(() {
+                                print("qr code found");
                                 qr = code;
                               });
                             },
